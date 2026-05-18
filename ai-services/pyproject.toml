@@ -1,0 +1,8 @@
+[project]
+name = "nexarecruit-ai-services"
+version = "1.0.0"
+description = "NexaRecruit AI Service Layer - FastAPI + Groq LLM Multi-Agent Pipeline"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = ["app"]

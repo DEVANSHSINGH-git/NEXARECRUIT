@@ -1,0 +1,149 @@
+// Prisma Schema for NexaRecruit (Supabase PostgreSQL)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CANDIDATE
+  RECRUITER
+  ADMIN
+}
+
+enum RecruiterActionType {
+  SHORTLISTED
+  REJECTED
+  REVIEWED
+  CONTACTED
+}
+
+model User {
+  id        String   @id  // Supabase Auth UID, set manually
+  name      String
+  email     String   @unique
+  password  String   @default("managed-by-supabase")
+  role      UserRole @default(CANDIDATE)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  resumes          Resume[]
+  jobDescriptions  JobDescription[]
+  recruiterActions RecruiterAction[]
+
+  @@map("users")
+}
+
+model Resume {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  fileName      String   @map("file_name")
+  filePath      String   @map("file_path")
+  fileSize      Int      @map("file_size")
+  mimeType      String   @map("mime_type")
+  parsedContent String?  @map("parsed_content") @db.Text
+  skills        Json?
+  experience    Json?
+  education     Json?
+  projects      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  evaluations Evaluation[]
+
+  @@index([userId])
+  @@map("resumes")
+}
+
+model JobDescription {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  userId    String   @map("user_id")
+  skills    Json?
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  evaluations Evaluation[]
+
+  @@index([userId])
+  @@map("job_descriptions")
+}
+
+model Evaluation {
+  id               String   @id @default(uuid())
+  resumeId         String   @map("resume_id")
+  jobDescriptionId String   @map("job_description_id")
+  atsScore         Float?   @map("ats_score")
+  skillsMatchScore Float?   @map("skills_match_score")
+  experienceScore  Float?   @map("experience_score")
+  domainScore      Float?   @map("domain_score")
+  qualityScore     Float?   @map("quality_score")
+  feedback         Json?
+  strengths        Json?
+  weaknesses       Json?
+  missingSkills    Json?    @map("missing_skills")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  resume           Resume           @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  jobDescription   JobDescription   @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+  recommendation   Recommendation?
+  recruiterActions RecruiterAction[]
+
+  @@index([resumeId])
+  @@index([jobDescriptionId])
+  @@index([atsScore])
+  @@map("evaluations")
+}
+
+model Recommendation {
+  id                   String   @id @default(uuid())
+  evaluationId         String   @unique @map("evaluation_id")
+  recommendedRoles     Json?    @map("recommended_roles")
+  careerRoadmap        Json?    @map("career_roadmap")
+  skillGaps            Json?    @map("skill_gaps")
+  upskillingSuggestions Json?   @map("upskilling_suggestions")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@map("recommendations")
+}
+
+model RecruiterAction {
+  id           String              @id @default(uuid())
+  recruiterId  String              @map("recruiter_id")
+  evaluationId String              @map("evaluation_id")
+  action       RecruiterActionType
+  notes        String?             @db.Text
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  recruiter  User       @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@index([recruiterId])
+  @@index([evaluationId])
+  @@map("recruiter_actions")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String
+  resource  String
+  details   Json?
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([action])
+  @@map("audit_logs")
+}
